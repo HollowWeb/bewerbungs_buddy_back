@@ -22,10 +22,13 @@ public class NotificationController {
     public @ResponseBody Iterable<Notification> getAllNotifications() {
         return repository.findAll();
     }
+
     @GetMapping("/status")
     public @ResponseBody List<Notification> getNotificationsByStatus(@RequestParam String status) {
         return repository.findByStatus(status);
+
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<Notification> getNotificationById(@PathVariable Long id) {

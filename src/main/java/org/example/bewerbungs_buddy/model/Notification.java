@@ -1,41 +1,33 @@
 package org.example.bewerbungs_buddy.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import javax.persistence.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notification")
 public class Notification {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "application_id", nullable = false)
-    @JsonBackReference
-    private Application application;
 
     private LocalDate sendDate;
     private int notificationTime;
     private String status;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "application_id", nullable = false)
+    private Application application;
+
+    // getters and setters
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public Application getApplication() {
-        return application;
-    }
-
-    public void setApplication(Application application) {
-        this.application = application;
     }
 
     public LocalDate getSendDate() {
@@ -61,5 +53,12 @@ public class Notification {
     public void setStatus(String status) {
         this.status = status;
     }
-}
 
+    public Application getApplication() {
+        return application;
+    }
+
+    public void setApplication(Application application) {
+        this.application = application;
+    }
+}
