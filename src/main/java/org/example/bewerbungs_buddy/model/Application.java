@@ -1,20 +1,15 @@
 package org.example.bewerbungs_buddy.model;
 
-import org.springframework.data.annotation.Id;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Table;
-import java.awt.*;
+import javax.persistence.*;
 import java.time.LocalDate;
-import java.util.Date;
+import java.util.Set;
 
 @Entity
 @Table(name = "applications")
 public class Application {
 
-    @javax.persistence.Id
     @Id
     @GeneratedValue(strategy= GenerationType.AUTO)
     private Long id;
@@ -27,6 +22,10 @@ public class Application {
     private String additionalNotes;
     private int notificationTime;
     private String status;
+
+    @JsonManagedReference
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Notification> notifications;
 
 
     public void setId(Long id) {
@@ -98,5 +97,13 @@ public class Application {
     }
     public String getStatus() {
         return status;
+    }
+
+    public Set<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public void setNotifications(Set<Notification> notifications) {
+        this.notifications = notifications;
     }
 }

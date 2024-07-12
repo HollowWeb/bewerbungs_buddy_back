@@ -2,13 +2,18 @@ package org.example.bewerbungs_buddy.controller;
 
 import org.example.bewerbungs_buddy.model.Application;
 import org.example.bewerbungs_buddy.model.ApplicationRepository;
+import org.example.bewerbungs_buddy.model.Notification;
+import org.example.bewerbungs_buddy.model.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,16 +22,22 @@ import java.util.regex.Pattern;
 public class ApplicationController {
 
     @Autowired
-    private ApplicationRepository repository;
+    private ApplicationRepository applicationRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @GetMapping("")
     public @ResponseBody Iterable<Application> getAllApplications() {
-        return repository.findAll();
+        return applicationRepository.findAll();
     }
-
+    @GetMapping("/status")
+    public @ResponseBody List<Application> getApplicationsByStatus(@RequestParam String status) {
+        return applicationRepository.findByStatus(status);
+    }
     @GetMapping("/{id}")
     public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
-        return repository.findById(id)
+        return applicationRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -42,16 +53,22 @@ public class ApplicationController {
         if (!validatePostalCode(application.getPostalCode())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
-        Application savedApplication = repository.save(application);
+
+        Application savedApplication = applicationRepository.save(application);
+
+        if (application.getNotificationTime() > 0) {
+            createNotificationForApplication(savedApplication);
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(savedApplication);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
-        if (!repository.existsById(id)) {
+        if (!applicationRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
-        repository.deleteById(id);
+        applicationRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -59,14 +76,28 @@ public class ApplicationController {
     public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application application) {
         if (!validateContactInformation(application.getContactInfo()) ||
                 !validatePhoneNumber(application.getPhoneNumber()) ||
-                !validatePostalCode(application.getPostalCode())){
+                !validatePostalCode(application.getPostalCode())) {
 
             return ResponseEntity.badRequest().build();
         }
-        return repository.findById(id)
+        return applicationRepository.findById(id)
                 .map(existingApplication -> {
                     application.setId(id);
-                    Application updatedApplication = repository.save(application);
+                    Application updatedApplication = applicationRepository.save(application);
+                    return ResponseEntity.ok(updatedApplication);
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Application> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+        return applicationRepository.findById(id)
+                .map(existingApplication -> {
+                    String status = updates.get("status");
+                    if (status != null) {
+                        existingApplication.setStatus(status);
+                    }
+                    Application updatedApplication = applicationRepository.save(existingApplication);
                     return ResponseEntity.ok(updatedApplication);
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -105,8 +136,13 @@ public class ApplicationController {
         return matcher.matches();
     }
 
+    private void createNotificationForApplication(Application application) {
+        Notification notification = new Notification();
+        notification.setApplication(application);
+        notification.setSendDate(application.getSendDate().plusDays(application.getNotificationTime()));
+        notification.setNotificationTime(application.getNotificationTime());
+        notification.setStatus("Pending");
 
-
-
+        notificationRepository.save(notification);
+    }
 }
-
