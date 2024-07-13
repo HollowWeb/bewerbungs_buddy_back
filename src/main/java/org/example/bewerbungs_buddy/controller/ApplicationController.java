@@ -1,5 +1,6 @@
 package org.example.bewerbungs_buddy.controller;
 
+import org.example.bewerbungs_buddy.exceptions.*;
 import org.example.bewerbungs_buddy.model.Application;
 import org.example.bewerbungs_buddy.model.ApplicationRepository;
 import org.example.bewerbungs_buddy.model.Notification;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,32 +31,52 @@ public class ApplicationController {
 
     @GetMapping("")
     public @ResponseBody Iterable<Application> getAllApplications() {
-        return applicationRepository.findAll();
+        Iterable<Application> applications;
+        try {
+            applications = applicationRepository.findAll();
+        } catch (Exception ex){
+            throw new ApplicationCouldNotBeFoundException();
+        }
+        return applications;
     }
+
     @GetMapping("/status")
     public @ResponseBody List<Application> getApplicationsByStatus(@RequestParam String status) {
-        return applicationRepository.findByStatus(status);
+        List<Application> applications;
+        try {
+            applications = applicationRepository.findByStatus(status);
+        } catch (Exception ex){
+            throw new ApplicationCouldNotBeFoundException(status);
+        }
+        return applications;
     }
+
+
     @GetMapping("/{id}")
     public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
-        return applicationRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(()-> new ApplicationDoesNotExistException(id));
+        return ResponseEntity.ok(application);
     }
 
     @PostMapping("")
     public ResponseEntity<Application> addApplication(@RequestBody Application application) {
         if (!validateContactInformation(application.getContactInfo())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            throw new ApplicationHasInvalideContactInformationException(application.getContactInfo());
         }
         if (!validatePhoneNumber(application.getPhoneNumber())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            throw new ApplicationHasInvalidePhoneNumberException(application.getPhoneNumber());
         }
         if (!validatePostalCode(application.getPostalCode())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            throw new ApplicationHasInvalidePostalCodeException(application.getPostalCode());
         }
 
-        Application savedApplication = applicationRepository.save(application);
+        Application savedApplication;
+        try {
+            savedApplication = applicationRepository.save(application);
+        } catch (Exception ex){
+            throw new ApplicationCouldNotBeAddedException();
+        }
 
         if (application.getNotificationTime() > 0) {
             createNotificationForApplication(savedApplication);
@@ -66,9 +88,15 @@ public class ApplicationController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
         if (!applicationRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+            throw new ApplicationDoesNotExistException(id);
         }
-        applicationRepository.deleteById(id);
+
+        try {
+            applicationRepository.deleteById(id);
+        } catch (Exception ex){
+            throw new ApplicationCouldNotBeDeletedException(id);
+        }
+
         return ResponseEntity.noContent().build();
     }
 
@@ -80,28 +108,45 @@ public class ApplicationController {
 
             return ResponseEntity.badRequest().build();
         }
-        return applicationRepository.findById(id)
-                .map(existingApplication -> {
-                    application.setId(id);
-                    Application updatedApplication = applicationRepository.save(application);
-                    return ResponseEntity.ok(updatedApplication);
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<Application> existingApplication;
+
+        try {
+            existingApplication = applicationRepository.findById(id);
+        } catch (Exception ex) {
+            throw new ApplicationDoesNotExistException(id);
+        }
+
+        Application savedApplication;
+
+        try {
+            application.setId(id);
+            savedApplication = applicationRepository.save(application);
+        } catch (Exception ex) {
+            throw new ApplicationCouldNotBeUpdatedException(id);
+        }
+
+        return ResponseEntity.ok(savedApplication);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<Application> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
-        return applicationRepository.findById(id)
-                .map(existingApplication -> {
-                    String status = updates.get("status");
-                    if (status != null) {
-                        existingApplication.setStatus(status);
-                    }
-                    Application updatedApplication = applicationRepository.save(existingApplication);
-                    return ResponseEntity.ok(updatedApplication);
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Application existingApplication = applicationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationDoesNotExistException(id));
+
+        String status = updates.get("status");
+        if (status != null) {
+            existingApplication.setStatus(status);
+        }
+        Application updatedApplication;
+        try {
+            updatedApplication = applicationRepository.save(existingApplication);
+        } catch (Exception ex) {
+            throw new ApplicationCouldNotBePatchedException(id);
+        }
+
+        return ResponseEntity.ok(updatedApplication);
     }
+
 
     private boolean validateContactInformation(String contactInfo) {
         if (contactInfo == null || contactInfo.isEmpty()) {
@@ -142,7 +187,11 @@ public class ApplicationController {
         notification.setSendDate(application.getSendDate().plusDays(application.getNotificationTime()));
         notification.setNotificationTime(application.getNotificationTime());
         notification.setStatus("Pending");
+        try {
+            notificationRepository.save(notification);
+        } catch (Exception ex){
+            throw new CouldNotCreateNotificationForApplicationException(application.getId());
+        }
 
-        notificationRepository.save(notification);
     }
 }

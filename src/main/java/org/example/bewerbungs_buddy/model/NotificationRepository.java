@@ -9,4 +9,6 @@ public interface NotificationRepository extends CrudRepository<Notification, Lon
     @Query("SELECT n FROM Notification n JOIN FETCH n.application WHERE n.status = :status")
     List<Notification> findByStatus(String status);
 
+    List<Notification> findByApplicationId(Long application_id);
+
 }
