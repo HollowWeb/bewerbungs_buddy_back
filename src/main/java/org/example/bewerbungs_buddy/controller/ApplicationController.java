@@ -51,7 +51,6 @@ public class ApplicationController {
         return applications;
     }
 
-
     @GetMapping("/{id}")
     public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
         Application application = applicationRepository.findById(id)
@@ -87,45 +86,21 @@ public class ApplicationController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
-        if (!applicationRepository.existsById(id)) {
-            throw new ApplicationDoesNotExistException(id);
-        }
-
-        try {
-            applicationRepository.deleteById(id);
-        } catch (Exception ex){
-            throw new ApplicationCouldNotBeDeletedException(id);
-        }
-
-        return ResponseEntity.noContent().build();
+        return applicationRepository.findById(id).map(application -> {
+            applicationRepository.delete(application);
+            return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+        }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application application) {
-        if (!validateContactInformation(application.getContactInfo()) ||
-                !validatePhoneNumber(application.getPhoneNumber()) ||
-                !validatePostalCode(application.getPostalCode())) {
-
-            return ResponseEntity.badRequest().build();
-        }
-        Optional<Application> existingApplication;
-
-        try {
-            existingApplication = applicationRepository.findById(id);
-        } catch (Exception ex) {
-            throw new ApplicationDoesNotExistException(id);
-        }
-
-        Application savedApplication;
-
-        try {
-            application.setId(id);
-            savedApplication = applicationRepository.save(application);
-        } catch (Exception ex) {
-            throw new ApplicationCouldNotBeUpdatedException(id);
-        }
-
-        return ResponseEntity.ok(savedApplication);
+    public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application applicationDetails) {
+        return applicationRepository.findById(id).map(application -> {
+            application.setContactInfo(applicationDetails.getContactInfo());
+            application.setPhoneNumber(applicationDetails.getPhoneNumber());
+            application.setPostalCode(applicationDetails.getPostalCode());
+            applicationRepository.save(application);
+            return new ResponseEntity<Application>(application, HttpStatus.OK);
+        }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
     }
 
     @PatchMapping("/{id}")
@@ -146,7 +121,6 @@ public class ApplicationController {
 
         return ResponseEntity.ok(updatedApplication);
     }
-
 
     private boolean validateContactInformation(String contactInfo) {
         if (contactInfo == null || contactInfo.isEmpty()) {
@@ -182,6 +156,9 @@ public class ApplicationController {
     }
 
     private void createNotificationForApplication(Application application) {
+        if (application.getSendDate() == null) {
+            throw new ApplicationSendDateNotProvidedException(application.getId());
+        }
         Notification notification = new Notification();
         notification.setApplication(application);
         notification.setSendDate(application.getSendDate().plusDays(application.getNotificationTime()));
@@ -189,9 +166,9 @@ public class ApplicationController {
         notification.setStatus("Pending");
         try {
             notificationRepository.save(notification);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             throw new CouldNotCreateNotificationForApplicationException(application.getId());
         }
-
     }
+
 }
