@@ -29,6 +29,10 @@ public class ApplicationController {
     @Autowired
     private NotificationRepository notificationRepository;
 
+    /**
+     * Gets all Application from the Database
+     * @return Iterable<Application>
+     */
     @GetMapping("")
     public @ResponseBody Iterable<Application> getAllApplications() {
         Iterable<Application> applications;
@@ -40,6 +44,11 @@ public class ApplicationController {
         return applications;
     }
 
+    /**
+     * Gets all Application where status == status
+     * @param status
+     * @return List<Application>
+     */
     @GetMapping("/status")
     public @ResponseBody List<Application> getApplicationsByStatus(@RequestParam String status) {
         List<Application> applications;
@@ -51,6 +60,11 @@ public class ApplicationController {
         return applications;
     }
 
+    /**
+     * Gets 1 Application by there ID
+     * @param id
+     * @return ResponseEntity<Application>
+     */
     @GetMapping("/{id}")
     public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
         Application application = applicationRepository.findById(id)
@@ -58,6 +72,12 @@ public class ApplicationController {
         return ResponseEntity.ok(application);
     }
 
+    /**
+     * Inserts a New Application in to the database if the Email/Website, Phone Number and Postal Code are Valid
+     * If the Notification Time is > 0 then it will also automatically Create a Notification.
+     * @param application
+     * @return ResponseEntity<Application>
+     */
     @PostMapping("")
     public ResponseEntity<Application> addApplication(@RequestBody Application application) {
         if (!validateContactInformation(application.getContactInfo())) {
@@ -84,6 +104,11 @@ public class ApplicationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedApplication);
     }
 
+    /**
+     * Deletes 1 Application by there ID
+     * @param id
+     * @return ResponseEntity<Void>
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
         return applicationRepository.findById(id).map(application -> {
@@ -92,17 +117,31 @@ public class ApplicationController {
         }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
     }
 
+    /**
+     * Updates the Application with the correct ID with new Information. Used when Application have changes that are not Status changes.
+     * @param id
+     * @param applicationDetails
+     * @return ResponseEntity<Application>
+     */
     @PutMapping("/{id}")
     public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application applicationDetails) {
         return applicationRepository.findById(id).map(application -> {
             application.setContactInfo(applicationDetails.getContactInfo());
             application.setPhoneNumber(applicationDetails.getPhoneNumber());
             application.setPostalCode(applicationDetails.getPostalCode());
+            application.setStatus(applicationDetails.getStatus());
+            application.setKanton(applicationDetails.getKanton());
             applicationRepository.save(application);
             return new ResponseEntity<Application>(application, HttpStatus.OK);
         }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
     }
 
+    /**
+     * Updates ONLY the Status of an Application that is identified by there ID
+     * @param id
+     * @param updates
+     * @return ResponseEntity<Application>
+     */
     @PatchMapping("/{id}")
     public ResponseEntity<Application> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
         Application existingApplication = applicationRepository.findById(id)
@@ -122,6 +161,11 @@ public class ApplicationController {
         return ResponseEntity.ok(updatedApplication);
     }
 
+    /**
+     * Validates ContactInfo if it is a Website or an Email address and matches with the Regex
+     * @param contactInfo
+     * @return boolean
+     */
     private boolean validateContactInformation(String contactInfo) {
         if (contactInfo == null || contactInfo.isEmpty()) {
             return false;
@@ -133,6 +177,11 @@ public class ApplicationController {
         return matcher.matches();
     }
 
+    /**
+     * Validates a PhoneNumber if it is Correct and matches with the Regex
+     * @param phoneNumber
+     * @return boolean
+     */
     private boolean validatePhoneNumber(String phoneNumber) {
         if (phoneNumber == null || phoneNumber.isEmpty()) {
             return true;
@@ -144,6 +193,11 @@ public class ApplicationController {
         return matcher.matches();
     }
 
+    /**
+     * Validates a PostalCode if it is made up of 4 Number
+     * @param postalCode
+     * @return boolean
+     */
     private boolean validatePostalCode(String postalCode) {
         if (postalCode == null || postalCode.isEmpty()) {
             return false;
@@ -155,6 +209,10 @@ public class ApplicationController {
         return matcher.matches();
     }
 
+    /**
+     * Create a Notification from the information of an Application
+     * @param application
+     */
     private void createNotificationForApplication(Application application) {
         if (application.getSendDate() == null) {
             throw new ApplicationSendDateNotProvidedException(application.getId());

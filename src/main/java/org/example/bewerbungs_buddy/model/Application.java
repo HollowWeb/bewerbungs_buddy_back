@@ -8,6 +8,7 @@ import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.Set;
 
+
 @Entity
 @Table(name = "applications")
 public class Application {

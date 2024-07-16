@@ -21,6 +21,10 @@ public class NotificationController {
     @Autowired
     private NotificationRepository repository;
 
+    /**
+     * Gets all Notifications
+     * @return Iterable<Notification>
+     */
     @GetMapping("")
     public @ResponseBody Iterable<Notification> getAllNotifications() {
         Iterable<Notification> notifications;
@@ -32,6 +36,11 @@ public class NotificationController {
         return notifications;
     }
 
+    /**
+     * Gets all Notification where the status matches the param status
+     * @param status
+     * @return List<Notification>
+     */
     @GetMapping("/status")
     public @ResponseBody List<Notification> getNotificationsByStatus(@RequestParam String status) {
         List<Notification> notifications;
@@ -44,6 +53,11 @@ public class NotificationController {
 
     }
 
+    /**
+     * Gets 1 Notification by there ID
+     * @param id
+     * @return ResponseEntity<Notification>
+     */
     @GetMapping("/{id}")
     public ResponseEntity<Notification> getNotificationById(@PathVariable Long id) {
         Optional<Notification> notification;
@@ -57,6 +71,11 @@ public class NotificationController {
 
     }
 
+    /**
+     * Adds a new Notification to the database
+     * @param notification
+     * @return ResponseEntity<Notification>
+     */
     @PostMapping("")
     public ResponseEntity<Notification> addNotification(@RequestBody Notification notification) {
 
@@ -69,6 +88,11 @@ public class NotificationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedNotification);
     }
 
+    /**
+     * Deletes 1 Notification by there ID
+     * @param id
+     * @return ResponseEntity<Void>
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
         if (!repository.existsById(id)) {
@@ -84,6 +108,11 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Deletes ALL notifications by there Application_ID
+     * @param id
+     * @return ResponseEntity<Void>
+     */
     @DeleteMapping("/del/{id}")
     public ResponseEntity<Void> deleteNotificationByApplication(@PathVariable Long id) {
         List<Notification> allNotifications = repository.findByApplicationId(id);
@@ -100,6 +129,12 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Updates 1 Notification by there ID
+     * @param id
+     * @param notification
+     * @return ResponseEntity<Notification>
+     */
     @PutMapping("/{id}")
     public ResponseEntity<Notification> updateNotification(@PathVariable Long id, @RequestBody Notification notification) {
         if (!repository.existsById(id)) {
@@ -115,6 +150,12 @@ public class NotificationController {
         return ResponseEntity.ok(updatedNotification);
     }
 
+    /**
+     * Updates the status of a Notification that is identified by there ID
+     * @param id
+     * @param updates
+     * @return ResponseEntity<Notification>
+     */
     @PatchMapping("/{id}")
     public ResponseEntity<Notification> updateNotificationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
         Notification existingNotification = repository.findById(id).orElseThrow( () -> new NotificationCouldNotBeFoundByIdException(id));

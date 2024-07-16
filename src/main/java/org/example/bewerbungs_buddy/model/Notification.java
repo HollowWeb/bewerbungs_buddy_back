@@ -1,10 +1,12 @@
 package org.example.bewerbungs_buddy.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-
 import javax.persistence.*;
 import java.time.LocalDate;
 
+/**
+ * The Notification Class is Connected to the Application Class in a Many-to-One Connection.
+ * It can be Joined by the Application_id to the ID of ONE Application.
+ */
 @Entity
 @Table(name = "notification")
 public class Notification {
