@@ -29,7 +29,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(ApplicationController.class)
 @AutoConfigureMockMvc
-public class ApplicationControllerTest {
+class ApplicationControllerTest {
 
     @MockBean
     private ApplicationRepository applicationRepository;
@@ -44,12 +44,12 @@ public class ApplicationControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    public void applicationController_isPresent() throws Exception {
+    void applicationController_isPresent() {
         assertThat(applicationController).isNotNull();
     }
 
     @Test
-    public void whenPostApplication_thenApplicationCreated() throws Exception {
+    void whenPostApplication_thenApplicationCreated() throws Exception {
         Application application = new Application();
         application.setContactInfo("valid.email@example.com");
         application.setPhoneNumber("+1234567890");
@@ -67,7 +67,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenPostApplicationWithInvalidContactInfo_thenThrowsException() throws Exception {
+    void whenPostApplicationWithInvalidContactInfo_thenThrowsException() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.post("/applications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contactInfo\": \"invalid-email\", \"phoneNumber\": \"+1234567890\", \"postalCode\": \"1234\"}"))
@@ -75,7 +75,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenGetApplicationById_thenApplicationReturned() throws Exception {
+    void whenGetApplicationById_thenApplicationReturned() throws Exception {
         Application application = new Application();
         application.setId(1L);
         application.setContactInfo("valid.email@example.com");
@@ -88,7 +88,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenGetApplicationByInvalidId_thenThrowsException() throws Exception {
+    void whenGetApplicationByInvalidId_thenThrowsException() throws Exception {
         when(applicationRepository.findById(1L)).thenReturn(java.util.Optional.empty());
 
         mockMvc.perform(MockMvcRequestBuilders.get("/applications/1"))
@@ -96,7 +96,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenDeleteApplication_thenApplicationDeleted() throws Exception {
+    void whenDeleteApplication_thenApplicationDeleted() throws Exception {
         Application application = new Application();
         application.setId(1L);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(application));
@@ -106,7 +106,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenDeleteApplicationWithInvalidId_thenThrowsException() throws Exception {
+    void whenDeleteApplicationWithInvalidId_thenThrowsException() throws Exception {
         when(applicationRepository.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/applications/1"))
@@ -114,7 +114,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenUpdateApplication_thenApplicationUpdated() throws Exception {
+    void whenUpdateApplication_thenApplicationUpdated() throws Exception {
         Application application = new Application();
         application.setId(1L);
         application.setContactInfo("valid.email@example.com");
@@ -132,7 +132,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenUpdateApplicationWithInvalidId_thenThrowsException() throws Exception {
+    void whenUpdateApplicationWithInvalidId_thenThrowsException() throws Exception {
         when(applicationRepository.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(MockMvcRequestBuilders.put("/applications/1")
@@ -142,7 +142,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenPatchApplicationStatus_thenApplicationStatusUpdated() throws Exception {
+    void whenPatchApplicationStatus_thenApplicationStatusUpdated() throws Exception {
         Application application = new Application();
         application.setId(1L);
         application.setStatus("Pending");
@@ -158,7 +158,7 @@ public class ApplicationControllerTest {
     }
 
     @Test
-    public void whenPatchApplicationStatusWithInvalidId_thenThrowsException() throws Exception {
+    void whenPatchApplicationStatusWithInvalidId_thenThrowsException() throws Exception {
         when(applicationRepository.findById(1L)).thenReturn(java.util.Optional.empty());
 
         mockMvc.perform(MockMvcRequestBuilders.patch("/applications/1")

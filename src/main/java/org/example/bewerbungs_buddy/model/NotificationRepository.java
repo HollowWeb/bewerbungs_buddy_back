@@ -16,10 +16,11 @@ public interface NotificationRepository extends CrudRepository<Notification, Lon
     List<Notification> findByStatus(String status);
 
     /**
-     * Used to find Notification by its application_id
-     * @param application_id
+     * Used to find Notification by its applicationId
+     * @param applicationId
      * @return List<Notification>
      */
-    List<Notification> findByApplicationId(Long application_id);
+    List<Notification> findByApplicationId(Long applicationId)
+    ;
 
 }

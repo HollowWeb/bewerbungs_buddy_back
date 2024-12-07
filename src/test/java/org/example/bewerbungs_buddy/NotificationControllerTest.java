@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(NotificationController.class)
 @AutoConfigureMockMvc
-public class NotificationControllerTest {
+class NotificationControllerTest {
 
     @MockBean
     private NotificationRepository repository;
@@ -33,7 +33,7 @@ public class NotificationControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    public void whenGetAllNotifications_thenReturnJsonArray() throws Exception {
+    void whenGetAllNotifications_thenReturnJsonArray() throws Exception {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
@@ -47,7 +47,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenGetNotificationById_thenReturnJson() throws Exception {
+    void whenGetNotificationById_thenReturnJson() throws Exception {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
@@ -61,7 +61,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenGetNotificationByInvalidId_thenReturnNotFound() throws Exception {
+    void whenGetNotificationByInvalidId_thenReturnNotFound() throws Exception {
         when(repository.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/notifications/1"))
@@ -69,7 +69,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenPostNotification_thenCreateNotification() throws Exception {
+    void whenPostNotification_thenCreateNotification() throws Exception {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
@@ -83,7 +83,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenDeleteNotification_thenReturnNoContent() throws Exception {
+    void whenDeleteNotification_thenReturnNoContent() throws Exception {
         when(repository.existsById(1L)).thenReturn(true);
 
         mockMvc.perform(delete("/notifications/1"))
@@ -91,7 +91,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenDeleteNotification_thenReturnNotFound() throws Exception {
+    void whenDeleteNotification_thenReturnNotFound() throws Exception {
         when(repository.existsById(1L)).thenReturn(false);
 
         mockMvc.perform(delete("/notifications/1"))
@@ -100,7 +100,7 @@ public class NotificationControllerTest {
 
 
     @Test
-    public void whenUpdateNotification_thenReturnNotFound() throws Exception {
+    void whenUpdateNotification_thenReturnNotFound() throws Exception {
         when(repository.existsById(1L)).thenReturn(false);
 
         mockMvc.perform(put("/notifications/1")
@@ -110,7 +110,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenPatchNotificationStatus_thenReturnUpdatedNotification() throws Exception {
+    void whenPatchNotificationStatus_thenReturnUpdatedNotification() throws Exception {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
@@ -127,7 +127,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenPatchNotificationStatus_thenReturnNotFound() throws Exception {
+    void whenPatchNotificationStatus_thenReturnNotFound() throws Exception {
         when(repository.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(patch("/notifications/1")
@@ -137,7 +137,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenGetNotificationsByStatus_thenReturnJsonArray() throws Exception {
+    void whenGetNotificationsByStatus_thenReturnJsonArray() throws Exception {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
@@ -152,7 +152,7 @@ public class NotificationControllerTest {
     }
 
     @Test
-    public void whenGetNotificationsByStatus_thenReturnNotFound() throws Exception {
+    void whenGetNotificationsByStatus_thenReturnNotFound() throws Exception {
         when(repository.findByStatus("Pending")).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/notifications/status")
