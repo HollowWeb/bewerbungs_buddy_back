@@ -1,13 +1,8 @@
 package org.example.bewerbungs_buddy.controller;
 
 import org.example.bewerbungs_buddy.exceptions.*;
-import org.example.bewerbungs_buddy.model.Application;
-import org.example.bewerbungs_buddy.model.ApplicationRepository;
-import org.example.bewerbungs_buddy.model.Notification;
-import org.example.bewerbungs_buddy.model.NotificationRepository;
+import org.example.bewerbungs_buddy.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,217 +11,163 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Controller
 @RequestMapping("/applications")
 public class ApplicationController {
 
-    @Autowired
-    private ApplicationRepository applicationRepository;
+    private final ApplicationRepository applicationRepository;
+    private final NotificationRepository notificationRepository;
 
-    @Autowired
-    private NotificationRepository notificationRepository;
+    public ApplicationController(ApplicationRepository applicationRepository, NotificationRepository notificationRepository) {
+        this.applicationRepository = applicationRepository;
+        this.notificationRepository = notificationRepository;
+    }
 
-    /**
-     * Gets all Application from the Database
-     * @return Iterable<Application>
-     */
+
+    private static final Pattern CONTACT_INFO_PATTERN = Pattern.compile(
+            "^[\\w.%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$|^https?:\\/\\/(www\\.)?[\\w-]+(\\.[a-zA-Z]{2,})+$"
+    );
+
+    private static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(
+            "^(\\+\\d{1,3}[- ]?)?(\\(\\d{1,4}\\)[- ]?)?\\d{1,4}([- ]?\\d{1,4}){1,3}$"
+    );
+
+    private static final Pattern POSTAL_CODE_PATTERN = Pattern.compile("^\\d{4}$");
+
     @GetMapping("")
-    public @ResponseBody Iterable<Application> getAllApplications() {
-        Iterable<Application> applications;
-        try {
-            applications = applicationRepository.findAll();
-        } catch (Exception ex){
-            throw new ApplicationCouldNotBeFoundException();
-        }
-        return applications;
+    public List<ApplicationDTO> getAllApplications() {
+        return StreamSupport.stream(applicationRepository.findAll().spliterator(), false)
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Gets all Application where status == status
-     * @param status
-     * @return List<Application>
-     */
     @GetMapping("/status")
-    public @ResponseBody List<Application> getApplicationsByStatus(@RequestParam String status) {
-        List<Application> applications;
-        try {
-            applications = applicationRepository.findByStatus(status);
-        } catch (Exception ex){
-            throw new ApplicationCouldNotBeFoundException(status);
-        }
-        return applications;
+    public List<ApplicationDTO> getApplicationsByStatus(@RequestParam String status) {
+        return applicationRepository.findByStatus(status)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Gets 1 Application by there ID
-     * @param id
-     * @return ResponseEntity<Application>
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
+    public ResponseEntity<ApplicationDTO> getApplicationById(@PathVariable Long id) {
         Application application = applicationRepository.findById(id)
-                .orElseThrow(()-> new ApplicationDoesNotExistException(id));
-        return ResponseEntity.ok(application);
+                .orElseThrow(() -> new ApplicationDoesNotExistException(id));
+        return ResponseEntity.ok(mapToDTO(application));
     }
 
-    /**
-     * Inserts a New Application in to the database if the Email/Website, Phone Number and Postal Code are Valid
-     * If the Notification Time is > 0 then it will also automatically Create a Notification.
-     * @param application
-     * @return ResponseEntity<Application>
-     */
     @PostMapping("")
-    public ResponseEntity<Application> addApplication(@RequestBody Application application) {
-        if (!validateContactInformation(application.getContactInfo())) {
-            throw new ApplicationHasInvalideContactInformationException(application.getContactInfo());
-        }
-        if (!validatePhoneNumber(application.getPhoneNumber())) {
-            throw new ApplicationHasInvalidePhoneNumberException(application.getPhoneNumber());
-        }
-        if (!validatePostalCode(application.getPostalCode())) {
-            throw new ApplicationHasInvalidePostalCodeException(application.getPostalCode());
-        }
+    public ResponseEntity<ApplicationDTO> addApplication(@RequestBody ApplicationDTO applicationDTO) {
+        validateContactInformation(applicationDTO.getContactInfo());
+        validatePhoneNumber(applicationDTO.getPhoneNumber());
+        validatePostalCode(applicationDTO.getPostalCode());
 
-        Application savedApplication;
-        try {
-            savedApplication = applicationRepository.save(application);
-        } catch (Exception ex){
-            throw new ApplicationCouldNotBeAddedException();
-        }
+        Application application = mapToEntity(applicationDTO);
+        Application savedApplication = applicationRepository.save(application);
 
         if (application.getNotificationTime() > 0) {
             createNotificationForApplication(savedApplication);
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedApplication);
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(savedApplication));
     }
 
-    /**
-     * Deletes 1 Application by there ID
-     * @param id
-     * @return ResponseEntity<Void>
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
-        return applicationRepository.findById(id).map(application -> {
-            applicationRepository.delete(application);
-            return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
-        }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationDoesNotExistException(id));
+        applicationRepository.delete(application);
+        return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Updates the Application with the correct ID with new Information. Used when Application have changes that are not Status changes.
-     * @param id
-     * @param applicationDetails
-     * @return ResponseEntity<Application>
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application applicationDetails) {
-        return applicationRepository.findById(id).map(application -> {
-            application.setContactInfo(applicationDetails.getContactInfo());
-            application.setPhoneNumber(applicationDetails.getPhoneNumber());
-            application.setPostalCode(applicationDetails.getPostalCode());
-            application.setStatus(applicationDetails.getStatus());
-            application.setKanton(applicationDetails.getKanton());
-            applicationRepository.save(application);
-            return new ResponseEntity<Application>(application, HttpStatus.OK);
-        }).orElseThrow(() -> new ApplicationDoesNotExistException(id));
-    }
-
-    /**
-     * Updates ONLY the Status of an Application that is identified by there ID
-     * @param id
-     * @param updates
-     * @return ResponseEntity<Application>
-     */
-    @PatchMapping("/{id}")
-    public ResponseEntity<Application> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+    public ResponseEntity<ApplicationDTO> updateApplication(@PathVariable Long id, @RequestBody ApplicationDTO applicationDTO) {
         Application existingApplication = applicationRepository.findById(id)
                 .orElseThrow(() -> new ApplicationDoesNotExistException(id));
 
-        String status = updates.get("status");
-        if (status != null) {
-            existingApplication.setStatus(status);
-        }
-        Application updatedApplication;
-        try {
-            updatedApplication = applicationRepository.save(existingApplication);
-        } catch (Exception ex) {
-            throw new ApplicationCouldNotBePatchedException(id);
-        }
+        existingApplication.setContactInfo(applicationDTO.getContactInfo());
+        existingApplication.setPhoneNumber(applicationDTO.getPhoneNumber());
+        existingApplication.setPostalCode(applicationDTO.getPostalCode());
+        existingApplication.setStatus(applicationDTO.getStatus());
+        existingApplication.setKanton(applicationDTO.getKanton());
 
-        return ResponseEntity.ok(updatedApplication);
+        Application updatedApplication = applicationRepository.save(existingApplication);
+        return ResponseEntity.ok(mapToDTO(updatedApplication));
     }
 
-    /**
-     * Validates ContactInfo if it is a Website or an Email address and matches with the Regex
-     * @param contactInfo
-     * @return boolean
-     */
-    private boolean validateContactInformation(String contactInfo) {
-        if (contactInfo == null || contactInfo.isEmpty()) {
-            return false;
-        }
-        String regex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$|^https?:\\/\\/(www\\.)?[a-zA-Z0-9-]+(\\.[a-zA-Z]{2,})+$";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(contactInfo);
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApplicationDTO> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationDoesNotExistException(id));
 
-        return matcher.matches();
+        Optional.ofNullable(updates.get("status")).ifPresent(application::setStatus);
+        Application updatedApplication = applicationRepository.save(application);
+        return ResponseEntity.ok(mapToDTO(updatedApplication));
     }
 
-    /**
-     * Validates a PhoneNumber if it is Correct and matches with the Regex
-     * @param phoneNumber
-     * @return boolean
-     */
-    private boolean validatePhoneNumber(String phoneNumber) {
-        if (phoneNumber == null || phoneNumber.isEmpty()) {
-            return true;
+    private void validateContactInformation(String contactInfo) {
+        if (contactInfo == null || !CONTACT_INFO_PATTERN.matcher(contactInfo).matches()) {
+            throw new ApplicationHasInvalideContactInformationException(contactInfo);
         }
-        String regex = "^(\\+\\d{1,3}[- ]?)?(\\(\\d{1,4}\\)[- ]?)?\\d{1,4}[- ]?\\d{1,4}[- ]?\\d{1,9}$";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(phoneNumber);
-
-        return matcher.matches();
     }
 
-    /**
-     * Validates a PostalCode if it is made up of 4 Number
-     * @param postalCode
-     * @return boolean
-     */
-    private boolean validatePostalCode(String postalCode) {
-        if (postalCode == null || postalCode.isEmpty()) {
-            return false;
+    private void validatePhoneNumber(String phoneNumber) {
+        if (phoneNumber != null && !PHONE_NUMBER_PATTERN.matcher(phoneNumber).matches()) {
+            throw new ApplicationHasInvalidePhoneNumberException(phoneNumber);
         }
-        String regex = "^[0-9]{4}$";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(postalCode);
-
-        return matcher.matches();
     }
 
-    /**
-     * Create a Notification from the information of an Application
-     * @param application
-     */
+    private void validatePostalCode(String postalCode) {
+        if (postalCode == null || !POSTAL_CODE_PATTERN.matcher(postalCode).matches()) {
+            throw new ApplicationHasInvalidePostalCodeException(postalCode);
+        }
+    }
+
     private void createNotificationForApplication(Application application) {
         if (application.getSendDate() == null) {
             throw new ApplicationSendDateNotProvidedException(application.getId());
         }
+
         Notification notification = new Notification();
         notification.setApplication(application);
         notification.setSendDate(application.getSendDate().plusDays(application.getNotificationTime()));
         notification.setNotificationTime(application.getNotificationTime());
         notification.setStatus("Pending");
-        try {
-            notificationRepository.save(notification);
-        } catch (Exception ex) {
-            throw new CouldNotCreateNotificationForApplicationException(application.getId());
-        }
+
+        notificationRepository.save(notification);
     }
 
+    private ApplicationDTO mapToDTO(Application application) {
+        ApplicationDTO dto = new ApplicationDTO();
+        dto.setId(application.getId());
+        dto.setCompanyName(application.getCompanyName());
+        dto.setContactInfo(application.getContactInfo());
+        dto.setPhoneNumber(application.getPhoneNumber());
+        dto.setSendDate(application.getSendDate());
+        dto.setKanton(application.getKanton());
+        dto.setPostalCode(application.getPostalCode());
+        dto.setAdditionalNotes(application.getAdditionalNotes());
+        dto.setNotificationTime(application.getNotificationTime());
+        dto.setStatus(application.getStatus());
+        return dto;
+    }
+
+    private Application mapToEntity(ApplicationDTO dto) {
+        Application application = new Application();
+        application.setId(dto.getId());
+        application.setCompanyName(dto.getCompanyName());
+        application.setContactInfo(dto.getContactInfo());
+        application.setPhoneNumber(dto.getPhoneNumber());
+        application.setSendDate(dto.getSendDate());
+        application.setKanton(dto.getKanton());
+        application.setPostalCode(dto.getPostalCode());
+        application.setAdditionalNotes(dto.getAdditionalNotes());
+        application.setNotificationTime(dto.getNotificationTime());
+        application.setStatus(dto.getStatus());
+        return application;
+    }
 }
