@@ -2,7 +2,6 @@ package org.example.bewerbungs_buddy.controller;
 
 import org.example.bewerbungs_buddy.exceptions.*;
 import org.example.bewerbungs_buddy.model.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Controller
@@ -27,10 +25,9 @@ public class ApplicationController {
         this.notificationRepository = notificationRepository;
     }
 
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w.%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern URL_PATTERN = Pattern.compile("^https?://(www\\.)?[\\w.-]+\\.[a-zA-Z]{2,}$");
 
-    private static final Pattern CONTACT_INFO_PATTERN = Pattern.compile(
-            "^[\\w.%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$|^https?:\\/\\/(www\\.)?[\\w-]+(\\.[a-zA-Z]{2,})+$"
-    );
 
     private static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(
             "^(\\+\\d{1,3}[- ]?)?(\\(\\d{1,4}\\)[- ]?)?\\d{1,4}([- ]?\\d{1,4}){1,3}$"
@@ -42,7 +39,7 @@ public class ApplicationController {
     public List<ApplicationDTO> getAllApplications() {
         return StreamSupport.stream(applicationRepository.findAll().spliterator(), false)
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @GetMapping("/status")
@@ -50,7 +47,7 @@ public class ApplicationController {
         return applicationRepository.findByStatus(status)
                 .stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @GetMapping("/{id}")
@@ -110,7 +107,10 @@ public class ApplicationController {
     }
 
     private void validateContactInformation(String contactInfo) {
-        if (contactInfo == null || !CONTACT_INFO_PATTERN.matcher(contactInfo).matches()) {
+        if (contactInfo == null || contactInfo.isEmpty()) {
+            throw new ApplicationHasInvalideContactInformationException(contactInfo);
+        }
+        if (!EMAIL_PATTERN.matcher(contactInfo).matches() && !URL_PATTERN.matcher(contactInfo).matches()) {
             throw new ApplicationHasInvalideContactInformationException(contactInfo);
         }
     }

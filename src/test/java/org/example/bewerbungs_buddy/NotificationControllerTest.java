@@ -4,15 +4,17 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.example.bewerbungs_buddy.controller.NotificationController;
+import org.example.bewerbungs_buddy.model.Application;
 import org.example.bewerbungs_buddy.model.Notification;
 import org.example.bewerbungs_buddy.model.NotificationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -37,13 +39,18 @@ class NotificationControllerTest {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
+        Application application = new Application();
+        application.setId(1L);
+        notification.setApplication(application);
 
-        when(repository.findAll()).thenReturn(Arrays.asList(notification));
+        when(repository.findAll()).thenReturn(List.of(notification));
 
-        mockMvc.perform(get("/notifications"))
+        mockMvc.perform(get("/notifications")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].status").value("Pending"));
+                .andExpect(jsonPath("$[0].status").value("Pending"))
+                .andExpect(jsonPath("$[0].applicationId").value(1));
     }
 
     @Test
@@ -52,13 +59,19 @@ class NotificationControllerTest {
         notification.setId(1L);
         notification.setStatus("Pending");
 
+        Application application = new Application();
+        application.setId(1L);
+        notification.setApplication(application);
+
         when(repository.findById(1L)).thenReturn(Optional.of(notification));
 
         mockMvc.perform(get("/notifications/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value("Pending"));
+                .andExpect(jsonPath("$.status").value("Pending"))
+                .andExpect(jsonPath("$.applicationId").value(1));
     }
+
 
     @Test
     void whenGetNotificationByInvalidId_thenReturnNotFound() throws Exception {
@@ -70,17 +83,28 @@ class NotificationControllerTest {
 
     @Test
     void whenPostNotification_thenCreateNotification() throws Exception {
+        // Arrange: Create Notification and Application objects
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
+        Application application = new Application();
+        application.setId(1L);
+        notification.setApplication(application);
 
-        when(repository.save(notification)).thenReturn(notification);
+        // Mock behavior of repository
+        when(repository.save(ArgumentMatchers.any(Notification.class))).thenReturn(notification);
 
+        // Act and Assert: Perform the POST request and validate the response
         mockMvc.perform(post("/notifications")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Pending\"}"))
-                .andExpect(status().isCreated());
+                        .content("{\"status\": \"Pending\", \"applicationId\": 1}"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value("Pending"))
+                .andExpect(jsonPath("$.applicationId").value(1));
     }
+
+
 
     @Test
     void whenDeleteNotification_thenReturnNoContent() throws Exception {
@@ -97,7 +121,6 @@ class NotificationControllerTest {
         mockMvc.perform(delete("/notifications/1"))
                 .andExpect(status().isNotFound());
     }
-
 
     @Test
     void whenUpdateNotification_thenReturnNotFound() throws Exception {
@@ -141,22 +164,31 @@ class NotificationControllerTest {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.setStatus("Pending");
+        Application application = new Application();
+        application.setId(1L);
+        notification.setApplication(application);
 
-        when(repository.findByStatus("Pending")).thenReturn(Arrays.asList(notification));
+        when(repository.findByStatus("Pending")).thenReturn(List.of(notification));
 
         mockMvc.perform(get("/notifications/status")
-                        .param("status", "Pending"))
+                        .param("status", "Pending")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].status").value("Pending"));
+                .andExpect(jsonPath("$[0].status").value("Pending"))
+                .andExpect(jsonPath("$[0].applicationId").value(1));
     }
 
+
     @Test
-    void whenGetNotificationsByStatus_thenReturnNotFound() throws Exception {
+    void whenGetNotificationsByStatus_thenReturnNoContent() throws Exception {
         when(repository.findByStatus("Pending")).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/notifications/status")
                         .param("status", "Pending"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent()); // Expect 204 status
     }
+
+
+
 }
